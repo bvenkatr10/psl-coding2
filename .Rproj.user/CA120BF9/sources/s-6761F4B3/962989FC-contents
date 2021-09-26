@@ -1,0 +1,359 @@
+---
+title: "Assignment_1_3102_bv10"
+author: Bhuvaneswari(Bhu) Venkatraman
+netid: bv10
+seedid: 3102
+output: html_document
+---
+
+#### netid: bv10
+
+#### seedid: 3102
+
+# Setting Seed and defining static variables
+
+```{r}
+library(class)
+set.seed("3102")
+```
+
+```{r}
+p = 2;      
+csize = 10;     # number of centers
+sigma = 1;      # sd for generating the centers 
+m1 = matrix(rnorm(csize*p), csize, p)*sigma + 
+  cbind( rep(1, csize), rep(0, csize))
+m0 = matrix(rnorm(csize*p), csize, p)*sigma + 
+  cbind( rep(0, csize), rep(1, csize))
+# static variables to hold results for part2 
+final_output_df = data.frame(linear_train=rep(0,50), linear_test=rep(0,50),quad_train=rep(0,50), quad_test=rep(0,50),bayes_train=rep(0,50), bayes_test=rep(0,50),knn_train=rep(0,50), knn_test=rep(0,50))
+list_k_chosen = rep(0,50)
+```
+
+# Function to generate simulated data
+
+```{r}
+sim_params = list(
+  csize = 10,      # number of centers
+  p = 2,           # dimension
+  s = sqrt(1/5),   # standard deviation for generating data
+  n = 100,         # training size per class
+  N = 5000,        # test size per class
+  m0 = m0,         # 10 centers for class 0
+  m1 = m1         # 10 centers for class 1
+)
+generate_sim_data = function(sim_params){
+  p = sim_params$p
+  s = sim_params$s 
+  n = sim_params$n 
+  N = sim_params$N 
+  m1 = sim_params$m1 
+  m0 = sim_params$m0
+  csize = sim_params$csize
+  
+  id1 = sample(1:csize, n, replace = TRUE);
+  id0 = sample(1:csize, n, replace = TRUE);
+  traindata = matrix(rnorm(2*n*p), 2*n, p)*s + rbind(m1[id1,], m0[id0,])
+  Ytrain = factor(c(rep(1,n), rep(0,n)))
+  shuffle_row_id = sample(1:n)
+  id1 = sample(1:csize, N, replace=TRUE);
+  id0 = sample(1:csize, N, replace=TRUE); 
+  testdata = matrix(rnorm(2*N*p), 2*N, p)*s + rbind(m1[id1,], m0[id0,])
+  Ytest = factor(c(rep(1,N), rep(0,N)))
+  
+  # Return the training/test data along with labels
+  list(
+    traindata = traindata,
+    Ytrain = Ytrain,
+    testdata = testdata,
+    Ytest = Ytest
+  )
+}
+```
+
+# Generate data for part1 and plot
+
+```{r}
+mydata = generate_sim_data(sim_params)
+traindata_part1 = mydata$train
+Ytrain_part1 = mydata$Ytrain
+testdata_part1 = mydata$testdata
+Ytest_part1 = mydata$Ytest
+n = nrow(traindata_part1)
+
+mycol = rep("blue", n)
+mycol[Ytrain_part1==0] = "red"
+plot(traindata_part1[, 1], traindata_part1[, 2], type = "n", xlab = "", ylab = "")
+points(traindata_part1[, 1], traindata_part1[, 2], col = mycol);
+points(m1[, 1], m1[, 2], pch = "+", cex = 2, col = "blue");    
+points(m0[, 1], m0[, 2], pch = "+", cex = 2, col = "red");   
+legend("bottomright", pch = c(1,1), col = c("blue", "red"), 
+       legend = c("class 1", "class 0"))  
+```
+
+# PART 1 SOLUTIONS
+
+# KNN function from scratch
+
+```{r}
+knn <- function(train, test, trainlabels, k=1, trainsample=NULL, l=2)
+{
+  if(ncol(train)!=ncol(test))
+    stop("Training and test set must contain equal number of features.")
+  if(length(trainlabels)!=nrow(train))
+    stop("Training labels must be of same length as training set.")
+  
+  if(is.null(trainsample))
+    trainsample <- nrow(train)
+  
+  subsample <- sample(1:nrow(train), trainsample, replace=F)
+  
+  train <- train[subsample,]
+  trainlabels <- trainlabels[subsample]
+  
+  results <- apply(test, 1, function(x) guess.knn(x, train, trainlabels, k, l))
+  
+  return(results)
+}
+
+guess.knn <- function(x, train, trainlabels, k, l)
+{
+  xmatrix <- matrix(as.numeric(x), nrow=nrow(train), ncol=length(x), byrow=T)
+  xmatrix <- (abs(as.matrix(train)-xmatrix))^l
+  diffs <- (rowSums(xmatrix))^(1/l)
+  
+  diffs <- data.frame(dist=diffs,label=trainlabels)
+  diffs <- (diffs[order(diffs$dist),])
+  diffs <- diffs[1:k,]
+  
+  guess <- names(sort(-table(diffs$label)))[1]
+  
+  return(guess)
+}
+```
+
+# KNN custom vs library value comparison for K=1
+
+```{r}
+# predict via my knn function
+test.pred.mykvv = knn(traindata_part1, testdata_part1, Ytrain_part1, k=1, trainsample=NULL, l=2)
+table(Ytest_part1, test.pred.mykvv)
+
+# predict via library knn function
+test.pred = knn(traindata_part1, testdata_part1, Ytrain_part1, k = 1)
+table(Ytest_part1, test.pred)
+```
+
+# KNN custom vs library value comparison for K=3
+
+```{r}
+# predict via my knn function
+test.pred.mykvv = knn(traindata_part1, testdata_part1, Ytrain_part1, k=3, trainsample=NULL, l=2)
+table(Ytest_part1, test.pred.mykvv)
+
+# predict via library knn function
+test.pred = knn(traindata_part1, testdata_part1, Ytrain_part1, k = 3)
+table(Ytest_part1, test.pred)
+```
+
+# KNN custom vs library value comparison for K=5
+
+```{r}
+# predict via my knn function
+test.pred.mykvv = knn(traindata_part1, testdata_part1, Ytrain_part1, k=5, trainsample=NULL, l=2)
+table(Ytest_part1, test.pred.mykvv)
+
+# predict via library knn function
+test.pred = knn(traindata_part1, testdata_part1, Ytrain_part1, k = 5)
+table(Ytest_part1, test.pred)
+```
+
+# PART 2 SOLUTIONS
+
+# Quadratic model fitting
+
+```{r}
+fit_qr_model = function(sim_data, verbose=FALSE) {
+  
+  # change Y from factor to numeric
+  sim_data$Ytrain = as.numeric(sim_data$Ytrain) - 1
+  sim_data$Ytest = as.numeric(sim_data$Ytest) - 1
+  
+  # fit a quadratic regression model
+  model = lm(
+    sim_data$Ytrain ~ 
+      V1 + V2 + I(V1^2) + I(V2^2) + V1:V2,
+    as.data.frame(sim_data$traindata)
+  )
+  
+  
+  decision_thresh = 0.5
+  train_pred = as.numeric(model$fitted.values > decision_thresh)
+  
+  test_yhat = predict(
+    model,
+    newdata=as.data.frame(sim_data$testdata)
+  )
+  test_pred = as.numeric(test_yhat > decision_thresh)
+  
+  # return the mean classification errors on training/test sets
+  list(
+    train_error = sum(sim_data$Ytrain  != train_pred) / length(sim_data$Ytrain),
+    test_error = sum(sim_data$Ytest  != test_pred) / 
+      length(sim_data$Ytest)
+  )
+}
+```
+
+# Linear model fitting
+
+```{r}
+fit_lr_model = function(sim_data, verbose=FALSE) {
+  
+  # change Y from factor to numeric
+  sim_data$Ytrain = as.numeric(sim_data$Ytrain) - 1
+  sim_data$Ytest = as.numeric(sim_data$Ytest) - 1
+  
+  # fit a quadratic regression model
+  model = lm(
+    sim_data$Ytrain ~ 
+      V1 + V2,
+    as.data.frame(sim_data$traindata)
+  )
+  
+  
+  decision_thresh = 0.5
+  train_pred = as.numeric(model$fitted.values > decision_thresh)
+  
+  test_yhat = predict(
+    model,
+    newdata=as.data.frame(sim_data$testdata)
+  )
+  test_pred = as.numeric(test_yhat > decision_thresh)
+  
+  # return the mean classification errors on training/test sets
+  list(
+    train_error = sum(sim_data$Ytrain  != train_pred) / length(sim_data$Ytrain),
+    test_error = sum(sim_data$Ytest  != test_pred) / 
+      length(sim_data$Ytest)
+  )
+}
+```
+
+# Bayes
+
+```{r}
+mixnorm = function(x, centers0=m0, centers1=m1, s=sim_params$s){
+  ## return the density ratio for a point x, where each 
+  ## density is a mixture of normal with multiple components
+  d1 = sum(exp(-apply((t(centers1) - x)^2, 2, sum) / (2 * s^2)))
+  d0 = sum(exp(-apply((t(centers0) - x)^2, 2, sum) / (2 * s^2)))
+  
+  return (d1 / d0)
+}
+```
+
+# Choosing best k value , 10 fold CV error with chosen k
+
+```{r}
+get_error_knn_sample = function(k, traindata, Ytrain) {
+  foldNum = 10
+  n = nrow(traindata)
+  foldSize = floor(n/foldNum)  
+  error = 0
+  for(runId in 1:foldNum){
+    testSetIndex = ((runId-1)*foldSize + 1):(ifelse(runId == foldNum, n, runId*foldSize))
+    trainX = traindata[-testSetIndex, ]
+    trainY = Ytrain[-testSetIndex]
+    testX = traindata[testSetIndex, ]
+    testY = Ytrain[testSetIndex]
+    predictY = knn(trainX, testX, trainY, k)
+    error = error + sum(predictY != testY) 
+  }
+  error = error / n
+  error
+}
+```
+
+```{r}
+chose_K_for_KNN_sample = function(traindata,  Ytrain, foldNum=10){
+  
+  n = nrow(traindata)
+  foldSize = floor(n/foldNum)  
+  KVector = seq(1, (nrow(traindata) - foldSize), 1)
+  cvErrorRates = sapply(KVector, get_error_knn_sample, traindata, Ytrain)
+  result = list()
+  result$bestK = max(KVector[cvErrorRates == min(cvErrorRates)])
+  result$cvError = cvErrorRates[KVector == result$bestK]
+  result
+}
+
+```
+
+# Simulation of all modes for 50 different sample values
+
+```{r}
+for (i in seq(1, 50)){
+  
+  #generate data sample
+  inputdata = generate_sim_data(sim_params)
+  traindata = inputdata$train
+  Ytrain = inputdata$Ytrain
+  testdata = inputdata$testdata
+  Ytest = inputdata$Ytest
+  
+  # fit quadratic model
+  qr_output = fit_qr_model(inputdata, TRUE)
+  final_output_df[i,3] = qr_output['train_error']
+  final_output_df[i,4] = qr_output['test_error']
+  
+  #fit linear model
+  lr_output = fit_lr_model(inputdata, TRUE)
+  final_output_df[i,1] = lr_output['train_error']
+  final_output_df[i,2] = lr_output['test_error']
+  
+  #fit bayes model
+  Ytrain_pred_Bayes = apply(traindata, 1, mixnorm)
+  Ytrain_pred_Bayes = as.numeric(Ytrain_pred_Bayes > 1)
+  train.err.Bayes = mean(Ytrain !=  Ytrain_pred_Bayes)
+  final_output_df[i, 5]=train.err.Bayes
+  Ytest_pred_Bayes = apply(testdata, 1, mixnorm)
+  Ytest_pred_Bayes = as.numeric(Ytest_pred_Bayes > 1);
+  test.err.Bayes = mean(Ytest !=  Ytest_pred_Bayes)
+  final_output_df[i, 6] = test.err.Bayes
+  
+  # choose best k on train data
+  chosen_k = chose_K_for_KNN_sample(traindata , Ytrain )
+  list_k_chosen[i] = as.numeric(chosen_k$bestK)
+  
+  
+  #apply chosen k to predict on train and test data
+  train_predict_knn = knn(traindata, traindata, Ytrain, chosen_k$bestK)
+  final_output_df[i, 7] = mean(Ytrain !=  train_predict_knn)
+  test_predict_knn = knn(traindata, testdata, Ytrain, chosen_k$bestK)
+  final_output_df[i, 8] = mean(Ytest !=  test_predict_knn)
+  
+}
+```
+
+# Chart Simulation output on various modes of models
+
+```{r}
+boxplot(final_output_df,main="Test Vs Train error for all modes after 50 simulations",
+        ylab="Error",
+        # col="orange",
+        border="purple", las=2 )
+```
+
+```{r}
+list_k_chosen
+```
+
+```{r}
+
+data.frame(
+  "mean" = mean(list_k_chosen),
+  "std. error" = sd(list_k_chosen),
+  row.names = "kchoice"
+  )
+```

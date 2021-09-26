@@ -1,0 +1,2 @@
+"0","data <- myDf1[c(""L_Refit"",""L_min""  , ""L_1se"" , ""R_min"" ,  ""R_1se"", ""PCR"" )]"
+"0","data"

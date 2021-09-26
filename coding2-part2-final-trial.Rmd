@@ -1,0 +1,194 @@
+---
+title: "Assignment_2_3102_bv10"
+author: Bhuvaneswari(Bhu) Venkatraman
+netid: bv10
+seedid: 3102
+output: html_document
+---
+
+#### netid: bv10
+
+#### seedid: 3102
+
+# Setting Seed and defining static variables
+
+
+```{r}
+library(glmnet) 
+library(pls)
+set.seed(3102)
+```
+
+
+# data read, training and test set generation as per dataset file name
+
+```{r}
+get_data <- function(dataset_file_name)  {
+  
+  # load csv
+  myData = read.csv(dataset_file_name)
+  myData = myData[, -1]
+  X = data.matrix(myData[,-1])  
+  Y = myData[,1] 
+  
+  # # generate train and test
+  T = 50
+  n = length(Y)
+  ntest = round(n * 0.25)  # test set size
+  ntrain = n - ntest  # training set size
+  all.test.id = matrix(0, ntest, T)  #
+  for(t in 1:T){
+    all.test.id[, t] = sample(1:n, ntest)
+  }
+  
+  #return necessary inputs to generate prediction
+  return(list(myData=myData, X=X, Y=Y, all.test.id=all.test.id))
+}
+```
+
+# full model prediction and MSE calculation
+
+```{r}
+full_model <- function(test.id, myData, X, Y) {
+  # full model
+  full.model = lm(Y ~ ., data = myData[-test.id,])
+  Ytest.pred = predict(full.model, newdata = myData[test.id,])
+  mean_out= mean((myData$Y[test.id] - Ytest.pred)^2)
+  return (mean_out)
+}
+```
+
+
+# ridge min, 1se
+
+```{r}
+ridge_model <- function(test.id, myData, X, Y) {
+  # ridge model
+  mean_out=rep(0,2)
+  cv.out = cv.glmnet(X[-test.id, ], Y[-test.id], alpha = 0)
+  best.lam = cv.out$lambda.min
+  Ytest.pred = predict(cv.out, s = best.lam, newx = X[test.id, ])
+  
+  mylasso.lambda.seq = exp(seq(-10, -2, length.out = 100))
+  cv.out = cv.glmnet(X[-test.id, ], Y[-test.id], alpha = 0, 
+                     lambda = mylasso.lambda.seq)
+  best.lam = cv.out$lambda.min
+  Ytest.pred = predict(cv.out, s = best.lam, newx = X[test.id, ])
+  mean_out[1] = mean((Y[test.id] - Ytest.pred)^2)
+  
+  best.lam = cv.out$lambda.1se
+  Ytest.pred = predict(cv.out, s = best.lam, newx = X[test.id, ])
+  mean_out[2] = mean((Y[test.id] - Ytest.pred)^2)
+  return (mean_out)
+}
+```
+
+
+# lasso min, 1se, refit
+
+```{r}
+lasso_model <- function(test.id, myData, X, Y) {
+  # lasso model
+  mean_out = rep(0,3)
+  cv.out = cv.glmnet(X[-test.id, ], Y[-test.id], alpha = 1)
+  best.lam = cv.out$lambda.min
+  Ytest.pred = predict(cv.out, s = best.lam, newx = X[test.id, ])
+  mean_out[1] = mean((Y[test.id] - Ytest.pred)^2)
+  
+  best.lam = cv.out$lambda.1se
+  Ytest.pred = predict(cv.out, s = best.lam, newx = X[test.id, ])
+  mean_out[2] = mean((Y[test.id] - Ytest.pred)^2)
+  
+  mylasso.coef = predict(cv.out, s = best.lam, type = "coefficients")
+  var.sel = row.names(mylasso.coef)[which(mylasso.coef != 0)[-1]]
+  mylasso.refit = lm(Y ~ ., myData[-test.id, c("Y", var.sel)])
+  Ytest.pred = predict(mylasso.refit, newdata = myData[test.id, ])
+  mean_out[3] = mean((Ytest.pred - Y[test.id])^2)
+  
+  return (mean_out)
+}
+```
+
+
+# pcr
+
+```{r}
+pcr_model <- function(test.id, myData, X, Y) {
+  # pcr model
+  mypcr = pcr(Y ~ ., data= myData[-test.id, ], validation="CV")
+  CVerr = RMSEP(mypcr)$val[1, , ]
+  adjCVerr = RMSEP(mypcr)$val[2, , ]
+  best.ncomp = which.min(CVerr) - 1 
+  if (best.ncomp==0) {
+    Ytest.pred = mean(myData$Y[-test.id])
+  } else {
+    Ytest.pred = predict(mypcr, myData[test.id,], ncomp=best.ncomp)
+  }
+  
+  mean_out = mean((Ytest.pred - myData$Y[test.id])^2)
+  return (mean_out)
+}
+```
+
+
+# output variables for plotting
+
+```{r}
+# final_output_df_bostonhousing2 = data.frame(Full=rep(0,50), R_min=rep(0,50),R_1se=rep(0,50), L_min=rep(0,50),L_1se=rep(0,50), L_Refit=rep(0,50),PCR=rep(0,50))
+final_output_df_bostonhousing3 = data.frame(R_min=rep(0,50),R_1se=rep(0,50), L_min=rep(0,50),L_1se=rep(0,50), L_Refit=rep(0,50),PCR=rep(0,50))
+```
+
+# function to get bostondata3.csv MSE on 50 different training and test set predictions
+
+```{r}
+predict_bostondata3 <- function() {
+  input_list = get_data("BostonData3.csv")
+  myData = input_list$myData
+  X = input_list$X
+  Y = input_list$Y
+  all.test.id = input_list$all.test.id
+  
+  for (m in 1:50) {
+    test.id = all.test.id[,m] 
+    ridge_out = ridge_model(test.id, myData, X, Y)
+    final_output_df_bostonhousing3[m,1]  = ridge_out[1]
+    final_output_df_bostonhousing3[m,2]  = ridge_out[2]
+    lasso_out = lasso_model(test.id, myData, X, Y)
+    final_output_df_bostonhousing3[m,3]  = lasso_out[1]
+    final_output_df_bostonhousing3[m,4]  = lasso_out[2]
+    final_output_df_bostonhousing3[m,5]  = lasso_out[3]
+    final_output_df_bostonhousing3[m,6]  = pcr_model(test.id,myData, X, Y)
+  }
+  return(final_output_df_bostonhousing3)
+}
+```
+
+# main function to execute 50 different training and test simulations
+
+```{r}
+final_output_df_bostonhousing3 = predict_bostondata3()
+```
+
+# chart bostondata3,,,,,,,,rfmhko .csv MSE
+
+```{r}
+final_output_df_bostonhousing3
+boxplot(final_output_df_bostonhousing3,main="MSPE for all modes after 50 simulations",
+        ylab="Error",
+        # col="orange",
+        border="purple", las=2 )
+```
+
+```{r}
+myDf1 <- as.data.frame(final_output_df_bostonhousing3)
+myDf1
+```
+
+```{r}
+data <- myDf1[c("L_Refit","L_min"  , "L_1se" , "R_min" ,  "R_1se", "PCR" )]
+data
+
+boxplot(data , col=rgb(0.3,0.5,0.4,0.6) , ylab="value" , 
+    xlab="names in desired order")
+```
+

@@ -1,0 +1,2 @@
+"0","boxplot(bostondata3_out , col=rgb(0.3,0.5,0.4,0.6) , ylab=""error"" , main=""MSPE for all modes after 50 simulations - BostonData3.csv"","
+"0","        xlab=""modes"")"

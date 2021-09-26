@@ -1,0 +1,13 @@
+"0","eval_functions = c(eval_ridge_model_min, eval_ridge_model_1se,"
+"0","                  eval_lasso_model_min, eval_lasso_model_1se,"
+"0","                  eval_lasso_refit_model)"
+"0","method_names = c(""R.min"",""R.1se"",""L.min"",""L.1se"",""L.Refit"")"
+"0",""
+"0","load(""BostonHousing2.csv"")"
+"2","Warning in readChar(con, 5L, useBytes = TRUE) :"
+"2","
+ "
+"2"," cannot open compressed file 'BostonHousing2.csv', probable reason 'No such file or directory'
+"
+"2","Error in readChar(con, 5L, useBytes = TRUE) : cannot open the connection
+"

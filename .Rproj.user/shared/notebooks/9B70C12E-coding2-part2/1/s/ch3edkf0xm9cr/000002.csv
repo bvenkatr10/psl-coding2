@@ -1,0 +1,5 @@
+"0","X = data.matrix(myData[,-1])  "
+"0","Y = myData[,1] "
+"0",""
+"0","X_bostonhousing3 = data.matrix(myData_bostonhousing3[,-1])  "
+"0","Y_bostonhousing3 = myData_bostonhousing3[,1] "

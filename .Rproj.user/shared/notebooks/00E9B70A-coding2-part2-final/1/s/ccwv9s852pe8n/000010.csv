@@ -1,0 +1,12 @@
+"0","  for (m in 1:T) {
+    test.id = all.test.id[,m] 
+    full.model = lm(Y ~ ., data = myData[-test.id,])
+    Ytest.pred = predict(full.model, newdata = myData[test.id,])
+    mean_out= mean((myData$Y[test.id] - Ytest.pred)^2)
+    final_output_df_bostonhousing2tm[m,1] = mean_out
+    mean_out
+    # final_output_df_bostonhousing2tm[m,1] = full_model(test.id, myData = myData, X, Y)
+  }
+"
+"2","Error in all.test.id : object 'all.test.id' not found
+"

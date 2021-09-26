@@ -1,0 +1,125 @@
+---
+title: "Assignment_2_3102_bv10"
+author: Bhuvaneswari(Bhu) Venkatraman
+netid: bv10
+seedid: 3102
+output: html_document
+---
+
+#### netid: bv10
+
+#### seedid: 3102
+
+# Setting Seed and defining static variables
+
+
+```{r}
+library(glmnet) 
+library(pls)
+set.seed(3102)
+```
+
+
+# data read, training and test set generation as per dataset file name
+
+```{r}
+get_data <- function(dataset_file_name)  {
+  
+  # load csv
+  myData = read.csv(dataset_file_name)
+  myData = myData[, -1]
+  X = data.matrix(myData[,-1])  
+  Y = myData[,1] 
+  
+  # # generate train and test
+  T = 50
+  n = length(Y)
+  ntest = round(n * 0.25)  # test set size
+  ntrain = n - ntest  # training set size
+  all.test.id = matrix(0, ntest, T)  #
+  for(t in 1:T){
+    all.test.id[, t] = sample(1:n, ntest)
+  }
+
+  #return necessary inputs to generate prediction
+  return(list(myData=myData, X=X, Y=Y, all.test.id=all.test.id))
+}
+```
+
+# full model prediction and MSE calculation
+
+```{r}
+full_model <- function(test.id, myData, X, Y) {
+  # full model
+  full.model = lm(Y ~ ., data = myData[-test.id,])
+  Ytest.pred = predict(full.model, newdata = myData[test.id,])
+  # MSPE[1] = mean((myData$Y[test.id] - Ytest.pred)^2)
+  mean_out= mean((myData$Y[test.id] - Ytest.pred)^2)
+  return (mean_out)
+}
+```
+
+# output variables for plotting
+
+```{r}
+final_output_df_bostonhousing2 = data.frame(Full=rep(0,50), R_min=rep(0,50),R_1se=rep(0,50), L_min=rep(0,50),L_1se=rep(0,50), L_Refit=rep(0,50),PCR=rep(0,50))
+final_output_df_bostonhousing2tm = data.frame(Full=rep(0,50))
+final_output_df_bostonhousing3 = data.frame(R_min=rep(0,50),R_1se=rep(0,50), L_min=rep(0,50),L_1se=rep(0,50), L_Refit=rep(0,50),PCR=rep(0,50))
+```
+
+# function to get bostondata2.csv MSE on 50 different training and test set predictions
+
+```{r}
+predict_bostondata2 <- function() {
+  input_list = get_data("BostonData2.csv")
+  myData = input_list$myData
+  X = input_list$X
+  Y = input_list$Y
+  all.test.id = input_list$all.test.id
+  
+  # generate train and test
+  # myData = read.csv("BostonData2.csv")
+  # myData = myData[, -1]
+  # X = data.matrix(myData[,-1])
+  # Y = myData[,1]
+  # T = 50
+  # n = length(Y)
+  # ntest = round(n * 0.25)  # test set size
+  # ntrain = n - ntest  # training set size
+  # all.test.id = matrix(0, ntest, T)  #
+  # for(t in 1:T){
+  #   all.test.id[, t] = sample(1:n, ntest)
+  # }
+  # 
+  # print(all.test.id2)
+  # print("-------------------------------------------------------------------------------------------")
+  # print(all.test.id)
+  for (m in 1:50) {
+    test.id = all.test.id[,m] 
+    # full.model = lm(Y ~ ., data = myData[-test.id,])
+    # Ytest.pred = predict(full.model, newdata = myData[test.id,])
+    # final_output_df_bostonhousing2tm[m,1] = mean((myData$Y[test.id] - Ytest.pred)^2)
+    # print(test.id)
+    # print(final_output_df_bostonhousing2tm)
+    final_output_df_bostonhousing2tm[m,1]  = full_model(test.id, myData, X, Y)
+  }
+   return(final_output_df_bostonhousing2tm)
+}
+```
+
+
+# main function to execute 50 different training and test simulations
+
+```{r}
+final_output_df_bostonhousing2tm = predict_bostondata2()
+```
+
+# chart bostondata2.csv MSE
+
+```{r}
+boxplot(final_output_df_bostonhousing2tm,main="MSPE for all modes after 50 simulations",
+        ylab="Error",
+        # col="orange",
+        border="purple", las=2 )
+```
+

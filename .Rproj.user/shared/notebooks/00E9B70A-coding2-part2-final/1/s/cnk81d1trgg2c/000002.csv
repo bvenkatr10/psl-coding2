@@ -1,0 +1,4 @@
+"0","boxplot(final_output_df_bostonhousing2,main=""MSPE for all modes after 50 simulations"","
+"0","        ylab=""Error"","
+"0","        # col=""orange"","
+"0","        border=""purple"", las=2 )"

@@ -1,0 +1,6 @@
+"0","test.id = all.test.id[,1] 
+mypcr = pcr(Y ~ ., data= myData[-test.id, ], validation=""CV"")
+"
+"2","Error in pcr(Y ~ ., data = myData[-test.id, ], validation = ""CV"") : 
+  unused arguments (data = myData[-test.id, ], validation = ""CV"")
+"

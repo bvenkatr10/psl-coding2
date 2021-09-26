@@ -1,0 +1,32 @@
+{
+    "id": "01E9C750",
+    "path": "~/Documents/workspace/r/assignments/coding2/Assignment_2_3102_bv10.Rmd",
+    "project_path": "Assignment_2_3102_bv10.Rmd",
+    "type": "r_markdown",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1632653640007.0,
+    "source_on_save": false,
+    "relative_order": 5,
+    "properties": {
+        "tempName": "Untitled1",
+        "chunk_output_type": "inline",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "333,0",
+        "scrollLine": "305",
+        "rmdVisualMode": "true",
+        "rmdVisualWrapConfigured": "true",
+        "docOutlineVisible": "1",
+        "rmdVisualModeLocation": "9252:7114"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1632657803,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1632657803956,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,8 @@
+"0","full_model <- function(test.id, myData, X, Y) {"
+"0","  # full model"
+"0","  full.model = lm(Y ~ ., data = myData[-test.id,])"
+"0","  Ytest.pred = predict(full.model, newdata = myData[test.id,])"
+"0","  # MSPE[1] = mean((myData$Y[test.id] - Ytest.pred)^2)"
+"0","  mean_out= mean((myData$Y[test.id] - Ytest.pred)^2)"
+"0","  return (mean_out)"
+"0","}"

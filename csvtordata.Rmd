@@ -1,0 +1,7 @@
+```{r}
+Housing1 = read.csv('BostonData2.csv', stringsAsFactors = F,head = T, row.names = 1)
+Housing1 = as.matrix(unisexCnts)
+str(Housing1)
+ save(Housing1, file="Boston.Rdata")
+```
+

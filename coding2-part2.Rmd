@@ -1,0 +1,265 @@
+---
+title: "coding2part2"
+output: html_notebook
+---
+
+```{r}
+library(glmnet) 
+library(pls)
+set.seed(3102)
+```
+
+```{r}
+myData = read.csv("BostonData2.csv")
+myData = myData[, -1]
+dim(myData)
+
+myData_bostonhousing3 = read.csv("BostonData3.csv")
+myData_bostonhousing3 = myData_bostonhousing3[, -1]
+dim(myData_bostonhousing3)
+```
+
+```{r}
+X = data.matrix(myData[,-1])  
+Y = myData[,1] 
+
+X_bostonhousing3 = data.matrix(myData_bostonhousing3[,-1])  
+Y_bostonhousing3 = myData_bostonhousing3[,1] 
+```
+
+```{r}
+T = 50
+n = length(Y)
+ntest = round(n * 0.25)  # test set size
+ntrain = n - ntest  # training set size
+all.test.id = matrix(0, ntest, T)  # 
+for(t in 1:T){
+  all.test.id[, t] = sample(1:n, ntest)
+}
+```
+
+
+```{r}
+MSPE = rep(0, 7)
+names(MSPE) = c("Full", "R_min", "R_1se", "L_min", "L_1se", "L_Refit", "PCR")
+```
+
+
+## FULL MODEL
+```{r}
+full_model <- function(test.id, myData, X, Y) {
+  # full model
+  full.model = lm(Y ~ ., data = myData[-test.id,])
+  Ytest.pred = predict(full.model, newdata = myData[test.id,])
+  MSPE[1] = mean((myData$Y[test.id] - Ytest.pred)^2)
+  mean_out= mean((myData$Y[test.id] - Ytest.pred)^2)
+  return (mean_out)
+}
+```
+
+## RIDGE_MIN and RIDGE 1SE
+```{r}
+rideg_min_1se <- function(test.id, myData, X, Y) {
+  mean_out = rep(0,2)
+  cv.out = cv.glmnet(X[-test.id, ], Y[-test.id], alpha = 0)
+  best.lam = cv.out$lambda.min
+  Ytest.pred = predict(cv.out, s = best.lam, newx = X[test.id, ])
+  MSPE[2] = mean((Y[test.id] - Ytest.pred)^2)
+  mylasso.lambda.seq = exp(seq(-4, 1, length.out = 100))
+  cv.out = cv.glmnet(X[-test.id, ], Y[-test.id], alpha = 0, 
+                     lambda = mylasso.lambda.seq)
+  
+  mylasso.lambda.seq = exp(seq(-10, -2, length.out = 100))
+  cv.out = cv.glmnet(X[-test.id, ], Y[-test.id], alpha = 0, 
+                     lambda = mylasso.lambda.seq)
+  best.lam = cv.out$lambda.min
+  Ytest.pred = predict(cv.out, s = best.lam, newx = X[test.id, ])
+  MSPE[2] = mean((Y[test.id] - Ytest.pred)^2)
+  mean_out[1] = mean((Y[test.id] - Ytest.pred)^2)
+  
+  best.lam = cv.out$lambda.1se
+  Ytest.pred = predict(cv.out, s = best.lam, newx = X[test.id, ])
+  MSPE[3] = mean((Y[test.id] - Ytest.pred)^2)
+  mean_out[2] = mean((Y[test.id] - Ytest.pred)^2)
+  
+  return (mean_out)
+}
+```
+
+## LASSO min, 1se and refit
+```{r}
+lasso_min_1se_refit <- function(test.id, myData, X, Y) {
+  mean_out = rep(0,3)
+  cv.out = cv.glmnet(X[-test.id, ], Y[-test.id], alpha = 1)
+  best.lam = cv.out$lambda.min
+  Ytest.pred = predict(cv.out, s = best.lam, newx = X[test.id, ])
+  MSPE[4] = mean((Y[test.id] - Ytest.pred)^2)
+  mean_out[1] = mean((Y[test.id] - Ytest.pred)^2)
+  
+  best.lam = cv.out$lambda.1se
+  Ytest.pred = predict(cv.out, s = best.lam, newx = X[test.id, ])
+  MSPE[5] = mean((Y[test.id] - Ytest.pred)^2)
+  mean_out[2] = mean((Y[test.id] - Ytest.pred)^2)
+  
+  mylasso.coef = predict(cv.out, s = best.lam, type = "coefficients")
+  var.sel = row.names(mylasso.coef)[which(mylasso.coef != 0)[-1]]
+  mylasso.refit = lm(Y ~ ., myData[-test.id, c("Y", var.sel)])
+  Ytest.pred = predict(mylasso.refit, newdata = myData[test.id, ])
+  MSPE[6] = mean((Ytest.pred - Y[test.id])^2)
+  mean_out[3] = mean((Ytest.pred - Y[test.id])^2)
+}
+```
+
+
+```{r}
+pcr_my <- function (test.id, myData) {
+  mypcr = pcr(Y ~ ., data= myData[-test.id, ], validation="CV")
+  CVerr = RMSEP(mypcr)$val[1, , ]
+  adjCVerr = RMSEP(mypcr)$val[2, , ]
+  best.ncomp = which.min(CVerr) - 1 
+  if (best.ncomp==0) {
+    Ytest.pred = mean(myData$Y[-test.id])
+  } else {
+    Ytest.pred = predict(mypcr, myData[test.id,], ncomp=best.ncomp)
+  }
+  
+  MSPE[7] = mean((Ytest.pred - myData$Y[test.id])^2)
+  mean_out = mean((Ytest.pred - myData$Y[test.id])^2)
+  
+  return(mean_out)
+}
+```
+
+
+
+```{r}
+test.id = all.test.id[,1] 
+mypcr = pcr(Y ~ ., data= myData[-test.id, ], validation="CV")
+  CVerr = RMSEP(mypcr)$val[1, , ]
+  adjCVerr = RMSEP(mypcr)$val[2, , ]
+  best.ncomp = which.min(CVerr) - 1 
+  if (best.ncomp==0) {
+    Ytest.pred = mean(myData$Y[-test.id])
+  } else {
+    Ytest.pred = predict(mypcr, myData[test.id,], ncomp=best.ncomp)
+  }
+```
+
+
+# ```{r}
+# eval_all_modes <- function(test_id, m) {
+#   # test.id = all.test.id[,m] 
+#   
+#   # full model
+#   full.model = lm(Y ~ ., data = myData[-test.id,])
+#   Ytest.pred = predict(full.model, newdata = myData[test.id,])
+#   MSPE[1] = mean((myData$Y[test.id] - Ytest.pred)^2)
+#   final_output_df[m,1]= mean((myData$Y[test.id] - Ytest.pred)^2)
+#   
+#   #ridge min and ridge 1se
+#   cv.out = cv.glmnet(X_bostonhousing3[-test.id, ], Y[-test.id], alpha = 0)
+#   best.lam = cv.out$lambda.min
+#   Ytest.pred = predict(cv.out, s = best.lam, newx = X_bostonhousing3[test.id, ])
+#   MSPE[2] = mean((Y[test.id] - Ytest.pred)^2)
+#   final_output_df[m,2] = mean((Y[test.id] - Ytest.pred)^2)
+#   
+#   mylasso.lambda.seq = exp(seq(-10, -2, length.out = 100))
+#   cv.out = cv.glmnet(X_bostonhousing3[-test.id, ], Y[-test.id], alpha = 0, 
+#                      lambda = mylasso.lambda.seq)
+#   best.lam = cv.out$lambda.min
+#   Ytest.pred = predict(cv.out, s = best.lam, newx = X_bostonhousing3[test.id, ])
+#   MSPE[2] = mean((Y[test.id] - Ytest.pred)^2)
+#   final_output_df[m,2] = mean((Y[test.id] - Ytest.pred)^2)
+#   
+#   best.lam = cv.out$lambda.1se
+#   Ytest.pred = predict(cv.out, s = best.lam, newx = X_bostonhousing3[test.id, ])
+#   MSPE[3] = mean((Y[test.id] - Ytest.pred)^2)
+#   final_output_df[m,3] = mean((Y[test.id] - Ytest.pred)^2)
+#   
+#   #lasso min, lasso 1se and refit
+#   cv.out = cv.glmnet(X_bostonhousing3[-test.id, ], Y[-test.id], alpha = 1)
+#   best.lam = cv.out$lambda.min
+#   Ytest.pred = predict(cv.out, s = best.lam, newx = X_bostonhousing3[test.id, ])
+#   MSPE[4] = mean((Y[test.id] - Ytest.pred)^2)
+#   final_output_df[m,4] = mean((Y[test.id] - Ytest.pred)^2)
+#   
+#   best.lam = cv.out$lambda.1se
+#   Ytest.pred = predict(cv.out, s = best.lam, newx = X_bostonhousing3[test.id, ])
+#   MSPE[5] = mean((Y[test.id] - Ytest.pred)^2)
+#   final_output_df[m,5] = mean((Y[test.id] - Ytest.pred)^2)
+#   
+#   mylasso.coef = predict(cv.out, s = best.lam, type = "coefficients")
+#   var.sel = row.names(mylasso.coef)[which(mylasso.coef != 0)[-1]]
+#   mylasso.refit = lm(Y ~ ., myData[-test.id, c("Y", var.sel)])
+#   Ytest.pred = predict(mylasso.refit, newdata = myData[test.id, ])
+#   MSPE[6] = mean((Ytest.pred - Y[test.id])^2)
+#   final_output_df[m,6] = mean((Ytest.pred - Y[test.id])^2)
+#   
+#   #pcr
+#   mypcr = pcr(Y ~ ., data= myData[-test.id, ], validation="CV")
+#   CVerr = RMSEP(mypcr)$val[1, , ]
+#   adjCVerr = RMSEP(mypcr)$val[2, , ]
+#   best.ncomp = which.min(CVerr) - 1 
+#   if (best.ncomp==0) {
+#     Ytest.pred = mean(myData$Y[-test.id])
+#   } else {
+#     Ytest.pred = predict(mypcr, myData[test.id,], ncomp=best.ncomp)
+#   }
+#   MSPE[7] = mean((Ytest.pred - myData$Y[test.id])^2)
+#   final_output_df[m,7] = mean((Ytest.pred - myData$Y[test.id])^2)
+#   return(final_output_df)
+# }
+# 
+# ```
+
+
+
+```{r}
+final_output_df_bostonhousing2 = data.frame(Full=rep(0,50), R_min=rep(0,50),R_1se=rep(0,50), L_min=rep(0,50),L_1se=rep(0,50), L_Refit=rep(0,50),PCR=rep(0,50))
+final_output_df_bostonhousing3 = data.frame(R_min=rep(0,50),R_1se=rep(0,50), L_min=rep(0,50),L_1se=rep(0,50), L_Refit=rep(0,50),PCR=rep(0,50))
+```
+
+```{r}
+for (m in 1:T) {
+  test.id = all.test.id[,m] 
+  # BostonHousing2.csv
+  # final_output_df_bostonhousing2 = eval_all_modes(test.id, m)
+  # final_output_df_bostonhousing3 = eval_all_modes_except_full(test.id, m)
+  final_output_df_bostonhousing2[m,1] = full_model(test.id, myData, X, Y)
+  mean_ridge_out_1 = rideg_min_1se(test.id, myData, X, Y)
+  mean_lasso_out_1 = lasso_min_1se_refit(test.id, myData, X, Y)
+  final_output_df_bostonhousing2[m,2] = mean_ridge_out_1[1]
+  final_output_df_bostonhousing2[m,3] = mean_ridge_out_1[2]
+  final_output_df_bostonhousing2[m,4] = mean_lasso_out_1[1]
+  final_output_df_bostonhousing2[m,5] = mean_lasso_out_1[2]
+  final_output_df_bostonhousing2[m,6] = mean_lasso_out_1[3]
+  # final_output_df_bostonhousing2[m,7] = pcr_my(test.id, myData)
+  
+  # BostonHousing3.csv
+  final_output_df_bostonhousing3 = eval_all_modes_except_full(test.id, m)
+  mean_ridge_out = rideg_min_1se(test.id, myData, X, Y)
+  mean_lasso_out = lasso_min_1se_refit(test.id, myData, X, Y)
+  final_output_df_bostonhousing3[m,1] = mean_ridge_out[1]
+  final_output_df_bostonhousing3[m,2] = mean_ridge_out[2]
+  final_output_df_bostonhousing3[m,3] = mean_lasso_out[1]
+  final_output_df_bostonhousing3[m,4] = mean_lasso_out[2]
+  final_output_df_bostonhousing3[m,5] = mean_lasso_out[3]
+  # final_output_df_bostonhousing3[m,6] = pcr_my(test.id, myData)
+}
+```
+
+
+```{r}
+boxplot(final_output_df_bostonhousing2,main="MSPE for all modes after 50 simulations",
+        ylab="Error",
+        # col="orange",
+        border="purple", las=2 )
+```
+
+```{r}
+boxplot(final_output_df_bostonhousing2,main="MSPE for all modes after 50 simulations",
+        ylab="Error",
+        # col="orange",
+        border="purple", las=2 )
+```
+
